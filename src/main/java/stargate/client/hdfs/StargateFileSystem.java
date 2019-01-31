@@ -16,21 +16,27 @@
 package stargate.client.hdfs;
 
 import java.io.FileNotFoundException;
-import stargate.drivers.userinterface.http.HTTPChunkInputStream;
 import stargate.drivers.userinterface.http.HTTPUserInterfaceClient;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
 import stargate.commons.cluster.Cluster;
+import stargate.commons.cluster.Node;
 import stargate.commons.dataobject.DataObjectMetadata;
 import stargate.commons.dataobject.DataObjectURI;
 import stargate.commons.recipe.Recipe;
+import stargate.commons.recipe.RecipeChunk;
+import stargate.commons.service.FSServiceInfo;
+import stargate.commons.userinterface.UserInterfaceServiceInfo;
 
 /**
  *
@@ -40,10 +46,13 @@ public class StargateFileSystem {
     
     private static final Log LOG = LogFactory.getLog(StargateFileSystem.class);
     
-    private static final int DEFAULT_BLOCK_SIZE = 1024*1024; // 1MB
-    
     private HTTPUserInterfaceClient userInterfaceClient;
     private Cluster localCluster;
+    private FSServiceInfo fsServiceInfo;
+    
+    private Map<DataObjectURI, Recipe> recipeCache = new PassiveExpiringMap<DataObjectURI, Recipe>(5, TimeUnit.MINUTES);
+    private Map<DataObjectURI, Collection<DataObjectMetadata>> dataObjectMetadataListCache = new PassiveExpiringMap<DataObjectURI, Collection<DataObjectMetadata>>(5, TimeUnit.MINUTES);;
+    private Map<DataObjectURI, DataObjectMetadata> dataObjectMetadataCache = new PassiveExpiringMap<DataObjectURI, DataObjectMetadata>(5, TimeUnit.MINUTES);;
     
     public StargateFileSystem(String serviceURI) throws IOException {
         if(serviceURI == null) {
@@ -76,7 +85,8 @@ public class StargateFileSystem {
             throw new IOException("cannot connect to Stargate : " + serviceURI.toASCIIString());
         }
         
-        this.localCluster = this.userInterfaceClient.getCluster();
+        this.localCluster = this.userInterfaceClient.getLocalCluster();
+        this.fsServiceInfo = this.userInterfaceClient.getFSServiceInfo();
         
         LOG.info("connected : " + serviceURI.toASCIIString());
     }
@@ -157,7 +167,7 @@ public class StargateFileSystem {
                 //TODO: need to implement this
                 //URI localResourcePath = this.userInterfaceClient.getLocalResourcePath(metadata.getURI());
                 URI localResourcePath = null;
-                return new StargateFileStatus(metadata, DEFAULT_BLOCK_SIZE, absURI, localResourcePath);
+                return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI, localResourcePath);
             } catch (URISyntaxException ex) {
                 throw new IOException(ex);
             }
@@ -165,7 +175,7 @@ public class StargateFileSystem {
             try {
                 URI metaURI = makeURI(metadata.getURI());
                 URI absURI = parentURI.resolve(metaURI);
-                return new StargateFileStatus(metadata, DEFAULT_BLOCK_SIZE, absURI);
+                return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI);
             } catch (URISyntaxException ex) {
                 throw new IOException(ex);
             }
@@ -177,22 +187,34 @@ public class StargateFileSystem {
             throw new IllegalArgumentException("uri is null");
         }
         
-        try {
-            DataObjectURI objectURI = makeDataObjectURI(uri);
-            List<StargateFileStatus> status = new ArrayList<StargateFileStatus>();
-            Collection<DataObjectMetadata> metadata = this.userInterfaceClient.listDataObjectMetadata(objectURI);
-            if(metadata != null) {
-                for(DataObjectMetadata m : metadata) {
-                    status.add(makeStargateFileStatus(m, uri));
+        DataObjectURI path = makeDataObjectURI(uri);
+        List<StargateFileStatus> stargateStatusList = new ArrayList<StargateFileStatus>();
+        
+        Collection<DataObjectMetadata> cachedMetadataList = this.dataObjectMetadataListCache.get(path);
+        
+        if(cachedMetadataList == null) {
+            try {
+                Collection<DataObjectMetadata> metadataList = this.userInterfaceClient.listDataObjectMetadata(path);
+                if(metadataList == null) {
+                    throw new IOException(String.format("cannot retrive a metadata list for %s", path.toString()));
                 }
+                
+                this.dataObjectMetadataListCache.put(path, metadataList);
+                cachedMetadataList = metadataList;
+            } catch (FileNotFoundException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                throw new IOException(ex);
             }
-            return status;
-        } catch (Exception ex) {
-            throw new IOException(ex);
         }
+        
+        for(DataObjectMetadata m : cachedMetadataList) {
+            stargateStatusList.add(makeStargateFileStatus(m, uri));
+        }
+        return stargateStatusList;
     }
 
-    public synchronized FSDataInputStream open(URI uri, int bufferSize) throws IOException {
+    public synchronized FSChunkInputStream open(URI uri, int bufferSize) throws IOException {
         if(uri == null) {
             throw new IllegalArgumentException("uri is null");
         }
@@ -200,7 +222,7 @@ public class StargateFileSystem {
         DataObjectURI path = makeDataObjectURI(uri);
         Recipe recipe = this.userInterfaceClient.getRecipe(path);
         if(recipe != null) {
-            return new FSDataInputStream(new HTTPChunkInputStream(this.userInterfaceClient, recipe));
+            return new FSChunkInputStream(this.userInterfaceClient, recipe);
         } else {
             throw new IOException("unable to retrieve a recipe of " + path.getPath());
         }
@@ -211,10 +233,113 @@ public class StargateFileSystem {
             throw new IllegalArgumentException("uri is null");
         }
         
+        DataObjectURI path = makeDataObjectURI(uri);
+        DataObjectMetadata cachedMetadata = this.dataObjectMetadataCache.get(path);
+        
+        if(cachedMetadata == null) {
+            try {
+                DataObjectMetadata metadata = this.userInterfaceClient.getDataObjectMetadata(path);
+                if(metadata == null) {
+                    throw new IOException(String.format("cannot retrive a metadata for %s", path.toString()));
+                }
+                
+                this.dataObjectMetadataCache.put(path, metadata);
+                cachedMetadata = metadata;
+            } catch (FileNotFoundException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                throw new IOException(ex);
+            }
+        }
+        
+        return makeStargateFileStatus(cachedMetadata, uri);
+    }
+    
+    private synchronized Recipe getRecipe(URI uri) throws IOException, FileNotFoundException {
+        if(uri == null) {
+            throw new IllegalArgumentException("uri is null");
+        }
+        
+        DataObjectURI path = makeDataObjectURI(uri);
+        Recipe cachedRecipe = this.recipeCache.get(path);
+        
+        if(cachedRecipe == null) {
+            try {
+                Recipe recipe = this.userInterfaceClient.getRecipe(path);
+                if(recipe == null) {
+                    throw new IOException(String.format("cannot retrive a recipe for %s", path.toString()));
+                }
+                this.recipeCache.put(path, recipe);
+                
+                cachedRecipe = recipe;
+            } catch (FileNotFoundException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                throw new IOException(ex);
+            }
+        }
+        
+        return cachedRecipe;
+    }
+    
+    private StargateFileBlockLocationEntry getBlockLocationEntry(String nodeName) {
+        Node node = this.localCluster.getNode(nodeName);
+        UserInterfaceServiceInfo userInterfaceServiceInfo = node.getUserInterfaceServiceInfo();
+        URI serviceURI = userInterfaceServiceInfo.getServiceURI();
+        
+        String host = serviceURI.getHost();
+        int port = serviceURI.getPort();
+        
+        String name = String.format("%s:%d", host, port);
+        
+        StargateFileBlockLocationEntry entry = new StargateFileBlockLocationEntry(name, host);
+        return entry;
+    }
+    
+    public synchronized Collection<StargateFileBlockLocation> getFileBlockLocations(URI uri, long start, long len) throws IOException {
+        //> Path : hdfs://node0.hadoop.cs.arizona.edu:9000/data/TOV/Station109_DCM.fa
+        //>> Offset: 0
+        //>> Length: 67108864
+        //>> Names
+        //150.135.65.19:50010
+        //150.135.65.12:50010
+        //>> Topology Paths
+        ///default-rack/150.135.65.19:50010
+        ///default-rack/150.135.65.12:50010
+        //>> Hosts
+        //node9.hadoop.cs.arizona.edu
+        //node2.hadoop.cs.arizona.edu
+        //>> Cached Hosts
+        
+        if(uri == null) {
+            throw new IllegalArgumentException("uri is null");
+        }
+        
         try {
-            DataObjectURI path = makeDataObjectURI(uri);
-            DataObjectMetadata metadata = this.userInterfaceClient.getDataObjectMetadata(path);
-            return makeStargateFileStatus(metadata, uri);
+            Recipe recipe = getRecipe(uri);
+            
+            List<StargateFileBlockLocation> blockLocations = new ArrayList<StargateFileBlockLocation>();
+            
+            long offset = start;
+            while(offset < start + len) {
+                RecipeChunk chunk = recipe.getChunk(offset);
+                Collection<Integer> nodeIDs = chunk.getNodeIDs();
+                Collection<String> nodeNames = recipe.getNodeNames(nodeIDs);
+                
+                List<StargateFileBlockLocationEntry> blockLocationEntries = new ArrayList<StargateFileBlockLocationEntry>();
+                
+                for(String nodeName : nodeNames) {
+                    StargateFileBlockLocationEntry blockLocationEntry = getBlockLocationEntry(nodeName);
+                    blockLocationEntries.add(blockLocationEntry);
+                }
+                
+                StargateFileBlockLocation blockLocation = new StargateFileBlockLocation(blockLocationEntries, offset, chunk.getLength());
+                blockLocations.add(blockLocation);
+                
+                offset += chunk.getLength();
+            }
+            
+            return Collections.unmodifiableCollection(blockLocations);
         } catch (FileNotFoundException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -223,10 +348,14 @@ public class StargateFileSystem {
     }
 
     public synchronized long getBlockSize() {
-        return DEFAULT_BLOCK_SIZE;
+        return this.fsServiceInfo.getChunkSize();
     }
     
     public synchronized void close() {
         this.userInterfaceClient.disconnect();
+        
+        this.recipeCache.clear();
+        this.dataObjectMetadataListCache.clear();
+        this.dataObjectMetadataCache.clear();
     }
 }

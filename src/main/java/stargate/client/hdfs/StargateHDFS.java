@@ -17,10 +17,13 @@ package stargate.client.hdfs;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -80,7 +83,7 @@ public class StargateHDFS extends FileSystem {
         
         super.initialize(uri, conf);
         
-        LOG.info("initializing uri for StargateFS : " + uri.toString());
+        LOG.debug("initializing uri for StargateFS : " + uri.toString());
         
         if(this.filesystem == null) {
             this.filesystem = new StargateFileSystem(getStargateHost(uri));
@@ -112,7 +115,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.info("setWorkingDirectory: " + path.toString());
+        LOG.debug("setWorkingDirectory: " + path.toString());
         
         this.workingDir = makeAbsolute(path);
     }
@@ -134,7 +137,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.info("open: " + path.toString());
+        LOG.debug("open: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         StargateFileStatus status = this.filesystem.getFileStatus(absPath);
@@ -144,7 +147,7 @@ public class StargateHDFS extends FileSystem {
             return this.localHDFS.open(new Path(redirectionPath), bufferSize);
         } else {
             // pass to stargate
-            return this.filesystem.open(absPath, bufferSize);
+            return new FSDataInputStream(this.filesystem.open(absPath, bufferSize));
         }
     }
 
@@ -154,7 +157,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.info("getFileStatus: " + path.toString());
+        LOG.debug("getFileStatus: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         StargateFileStatus status = this.filesystem.getFileStatus(absPath);
@@ -167,7 +170,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.info("listStatus: " + path.toString());
+        LOG.debug("listStatus: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         Collection<StargateFileStatus> status = this.filesystem.listStatus(absPath);
@@ -191,6 +194,41 @@ public class StargateHDFS extends FileSystem {
     @Override
     public long getDefaultBlockSize() {
         return this.filesystem.getBlockSize();
+    }
+    
+    @Override
+    public BlockLocation[] getFileBlockLocations(FileStatus status, long start, long len) throws IOException {
+        if(status == null) {
+            throw new IllegalArgumentException("status is null");
+        }
+        
+        return getFileBlockLocations(status.getPath(), start, len);
+    }
+
+    @Override
+    public BlockLocation[] getFileBlockLocations(Path path, long start, long len) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException("path is null");
+        }
+        
+        LOG.debug("getFileBlockLocations: " + path.toString());
+        
+        URI absPath = makeAbsoluteURI(path);
+        Collection<StargateFileBlockLocation> fileBlockLocations = this.filesystem.getFileBlockLocations(absPath, start, len);
+        List<BlockLocation> blkLocations = new ArrayList<BlockLocation>();
+        
+        for(StargateFileBlockLocation location : fileBlockLocations) {
+            BlockLocation blkLocation = makeBlockLocation(location);
+            blkLocations.add(blkLocation);
+        }
+        
+        return blkLocations.toArray(new BlockLocation[0]);
+    }
+    
+    private BlockLocation makeBlockLocation(StargateFileBlockLocation blockLocation) {
+        String[] names = blockLocation.getNames().toArray(new String[0]);
+        String[] hosts = blockLocation.getHosts().toArray(new String[0]);
+        return new BlockLocation(names, hosts, blockLocation.getOffset(), blockLocation.getLength());
     }
     
     @Override

@@ -24,11 +24,13 @@ import java.util.Collection;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import stargate.commons.cluster.Cluster;
+import stargate.commons.cluster.Node;
 import stargate.commons.dataobject.DataObjectMetadata;
 import stargate.commons.dataobject.DataObjectURI;
 import stargate.commons.datasource.DataExportEntry;
 import stargate.commons.recipe.Recipe;
 import stargate.commons.restful.RestfulClient;
+import stargate.commons.service.FSServiceInfo;
 import stargate.commons.userinterface.AbstractUserInterfaceClient;
 import stargate.commons.utils.DateTimeUtils;
 import stargate.commons.utils.PathUtils;
@@ -117,6 +119,11 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
     }
     
     @Override
+    public URI getServiceURI() {
+        return this.serviceUri;
+    }
+    
+    @Override
     public long getConnectionEstablishedTime() {
         return this.connectionEstablishedTime;
     }
@@ -157,19 +164,93 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
         updateLastActivetime();
         return config;
     }
-
+    
     @Override
-    public Cluster getCluster() throws IOException {
+    public FSServiceInfo getFSServiceInfo() throws IOException {
         if(!this.connected) {
             throw new IOException("Client is not connected");
         }
         
-        // URL pattern = http://xxx.xxx.xxx.xxx/api/cluster
-        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_CLUSTER_PATH);
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/fssvcinfo
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_FS_SERVICE_INFO_PATH);
+        FSServiceInfo info = (FSServiceInfo) this.restfulClient.get(url);
+
+        updateLastActivetime();
+        return info;
+    }
+
+    @Override
+    public Cluster getCluster(String name) throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        if(name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("name is null or empty");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/cluster/clustername
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_CLUSTER_PATH, name);
         Cluster cluster = (Cluster) this.restfulClient.get(url);
 
         updateLastActivetime();
         return cluster;
+    }
+    
+    @Override
+    public Cluster getLocalCluster() throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/lcluster
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_LOCAL_CLUSTER_PATH);
+        Cluster cluster = (Cluster) this.restfulClient.get(url);
+
+        updateLastActivetime();
+        return cluster;
+    }
+    
+    public static final String API_CHECK_ACTIVE_CLUSTER_PATH = "active";
+    @Override
+    public void activateCluster() throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/activate
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_ACTIVATE_CLUSTER_PATH);
+        Boolean response = (Boolean) this.restfulClient.post(url, null);
+
+        updateLastActivetime();
+    }
+    
+    @Override
+    public boolean isClusterActive() throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/active
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_CHECK_ACTIVE_CLUSTER_PATH);
+        Boolean active = (Boolean) this.restfulClient.get(url);
+
+        updateLastActivetime();
+        return active;
+    }
+    
+    @Override
+    public Node getLocalNode() throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/lnode
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_LOCAL_NODE_PATH);
+        Node node = (Node) this.restfulClient.get(url);
+
+        updateLastActivetime();
+        return node;
     }
     
     @Override
