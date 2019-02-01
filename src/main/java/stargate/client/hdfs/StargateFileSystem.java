@@ -160,25 +160,20 @@ public class StargateFileSystem {
     }
     
     private StargateFileStatus makeStargateFileStatus(DataObjectMetadata metadata, URI parentURI) throws IOException {
-        if(!metadata.isDirectory() && isLocalClusterPath(metadata.getURI())) {
-            try {
-                URI metaURI = makeURI(metadata.getURI());
-                URI absURI = parentURI.resolve(metaURI);
+        try {
+            URI metaURI = makeURI(metadata.getURI());
+            URI absURI = parentURI.resolve(metaURI);
+            
+            if(!metadata.isDirectory() && isLocalClusterPath(metadata.getURI())) {
                 //TODO: need to implement this
                 //URI localResourcePath = this.userInterfaceClient.getLocalResourcePath(metadata.getURI());
                 URI localResourcePath = null;
                 return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI, localResourcePath);
-            } catch (URISyntaxException ex) {
-                throw new IOException(ex);
-            }
-        } else {
-            try {
-                URI metaURI = makeURI(metadata.getURI());
-                URI absURI = parentURI.resolve(metaURI);
+            } else {
                 return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI);
-            } catch (URISyntaxException ex) {
-                throw new IOException(ex);
             }
+        } catch (URISyntaxException ex) {
+            throw new IOException(ex);
         }
     }
     
@@ -265,7 +260,14 @@ public class StargateFileSystem {
         
         if(cachedRecipe == null) {
             try {
-                Recipe recipe = this.userInterfaceClient.getRecipe(path);
+                Recipe recipe = null;
+                
+                if(isLocalClusterPath(path)) {
+                    recipe = this.userInterfaceClient.getRecipe(path);
+                } else {
+                    recipe = this.userInterfaceClient.getRemoteRecipeWithTransferSchedule(path);
+                }
+                
                 if(recipe == null) {
                     throw new IOException(String.format("cannot retrive a recipe for %s", path.toString()));
                 }
@@ -317,12 +319,12 @@ public class StargateFileSystem {
         
         try {
             Recipe recipe = getRecipe(uri);
-            
             List<StargateFileBlockLocation> blockLocations = new ArrayList<StargateFileBlockLocation>();
             
             long offset = start;
             while(offset < start + len) {
                 RecipeChunk chunk = recipe.getChunk(offset);
+                
                 Collection<Integer> nodeIDs = chunk.getNodeIDs();
                 Collection<String> nodeNames = recipe.getNodeNames(nodeIDs);
                 
