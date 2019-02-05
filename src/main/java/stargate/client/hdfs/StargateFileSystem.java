@@ -51,8 +51,8 @@ public class StargateFileSystem {
     private FSServiceInfo fsServiceInfo;
     
     private Map<DataObjectURI, Recipe> recipeCache = new PassiveExpiringMap<DataObjectURI, Recipe>(5, TimeUnit.MINUTES);
-    private Map<DataObjectURI, Collection<DataObjectMetadata>> dataObjectMetadataListCache = new PassiveExpiringMap<DataObjectURI, Collection<DataObjectMetadata>>(5, TimeUnit.MINUTES);;
-    private Map<DataObjectURI, DataObjectMetadata> dataObjectMetadataCache = new PassiveExpiringMap<DataObjectURI, DataObjectMetadata>(5, TimeUnit.MINUTES);;
+    private Map<DataObjectURI, Collection<DataObjectMetadata>> dataObjectMetadataListCache = new PassiveExpiringMap<DataObjectURI, Collection<DataObjectMetadata>>(5, TimeUnit.MINUTES);
+    private Map<DataObjectURI, DataObjectMetadata> dataObjectMetadataCache = new PassiveExpiringMap<DataObjectURI, DataObjectMetadata>(5, TimeUnit.MINUTES);
     
     public StargateFileSystem(String serviceURI) throws IOException {
         if(serviceURI == null) {
