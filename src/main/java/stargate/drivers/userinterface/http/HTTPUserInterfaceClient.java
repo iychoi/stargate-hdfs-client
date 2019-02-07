@@ -413,46 +413,29 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
     }
 
     @Override
-    public InputStream getDataChunk(String hash) throws IOException {
+    public InputStream getDataChunk(DataObjectURI uri, String hash) throws IOException {
         if(!this.connected) {
             throw new IOException("Client is not connected");
+        }
+        
+        if(uri == null) {
+            throw new IllegalArgumentException("uri is null");
         }
         
         if(hash == null || hash.isEmpty()) {
             throw new IllegalArgumentException("hash is null or empty");
         }
         
-        // URL pattern = http://xxx.xxx.xxx.xxx/api/data/hash
-        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_DATA_CHUNK_PATH, hash);
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/data/path/hash
+        String path = PathUtils.concatPath(uri.getClusterName(), uri.getPath());
+        String pathHash = PathUtils.concatPath(path, hash);
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_DATA_CHUNK_PATH, pathHash);
         InputStream is = this.restfulClient.download(url);
 
         updateLastActivetime();
         return is;
     }
     
-    @Override
-    public InputStream getRemoteDataChunk(String clusterName, String hash) throws IOException {
-        if(!this.connected) {
-            throw new IOException("Client is not connected");
-        }
-        
-        if(clusterName == null || clusterName.isEmpty()) {
-            throw new IllegalArgumentException("clusterName is null or empty");
-        }
-        
-        if(hash == null || hash.isEmpty()) {
-            throw new IllegalArgumentException("hash is null or empty");
-        }
-        
-        // URL pattern = http://xxx.xxx.xxx.xxx/api/rdata/clusterName/hash
-        String path = PathUtils.concatPath(clusterName, hash);
-        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_REMOTE_DATA_CHUNK_PATH, path);
-        InputStream is = this.restfulClient.download(url);
-
-        updateLastActivetime();
-        return is;
-    }
-
     @Override
     public String schedulePrefetch(DataObjectURI uri, String hash) throws IOException {
         if(!this.connected) {
