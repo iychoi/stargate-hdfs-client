@@ -19,6 +19,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.annotate.JsonProperty;
 
 /**
  *
@@ -31,14 +33,30 @@ public class StargateFileBlockLocation {
     private long offset;
     private long length;
     
-    public StargateFileBlockLocation() {
-        
+    StargateFileBlockLocation() {
     }
     
     public StargateFileBlockLocation(Collection<StargateFileBlockLocationEntry> entries, long offset, long length) {
+        if(entries == null) {
+            throw new IllegalArgumentException("entries is null");
+        }
+        
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
+        }
+        
+        if(length < 0) {
+            throw new IllegalArgumentException("length is negative");
+        }
+        
         for(StargateFileBlockLocationEntry entry : entries) {
-            this.names.add(entry.getName());
-            this.hosts.add(entry.getHost());
+            String name = entry.getName();
+            String host = entry.getHost();
+            if(name != null && !name.isEmpty()
+                && host != null && !host.isEmpty()) {
+                this.names.add(entry.getName());
+                this.hosts.add(entry.getHost());
+            }
         }
         
         this.offset = offset;
@@ -46,57 +64,113 @@ public class StargateFileBlockLocation {
     }
     
     public StargateFileBlockLocation(Collection<String> names, Collection<String> hosts, long offset, long length) {
+        if(names == null) {
+            throw new IllegalArgumentException("names is null");
+        }
+        
+        if(hosts == null) {
+            throw new IllegalArgumentException("hosts is null");
+        }
+        
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
+        }
+        
+        if(length < 0) {
+            throw new IllegalArgumentException("length is negative");
+        }
+        
         this.names.addAll(names);
         this.hosts.addAll(hosts);
         this.offset = offset;
         this.length = length;
     }
     
+    @JsonProperty("names")
     public Collection<String> getNames() {
         return Collections.unmodifiableCollection(this.names);
     }
 
+    @JsonProperty("names")
+    public void addNames(Collection<String> names) {
+        if(names == null) {
+            throw new IllegalArgumentException("names is null");
+        }
+        
+        for(String name : names) {
+            addName(name);
+        }
+    }
+    
+    @JsonIgnore
     public void addName(String name) {
+        if(name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("name is null or empty");
+        }
+        
         this.names.add(name);
     }
     
-    public void addNames(Collection<String> names) {
-        this.names.addAll(names);
-    }
-    
+    @JsonIgnore
     public void clearNames() {
         this.names.clear();
     }
     
+    @JsonProperty("hosts")
     public Collection<String> getHosts() {
         return Collections.unmodifiableCollection(this.hosts);
     }
 
+    @JsonProperty("hosts")
+    public void addHosts(Collection<String> hosts) {
+        if(hosts == null) {
+            throw new IllegalArgumentException("hosts is null");
+        }
+        
+        for(String host : hosts) {
+            addHost(host);
+        }
+    }
+    
+    @JsonIgnore
     public void addHost(String host) {
+        if(host == null || host.isEmpty()) {
+            throw new IllegalArgumentException("host is null or empty");
+        }
+        
         this.hosts.add(host);
     }
     
-    public void addHosts(Collection<String> hosts) {
-        this.hosts.addAll(hosts);
-    }
-    
+    @JsonIgnore
     public void clearHosts() {
         this.hosts.clear();
     }
 
+    @JsonProperty("offset")
     public long getOffset() {
         return offset;
     }
 
+    @JsonProperty("offset")
     public void setOffset(long offset) {
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
+        }
+        
         this.offset = offset;
     }
 
+    @JsonProperty("length")
     public long getLength() {
         return length;
     }
 
+    @JsonProperty("length")
     public void setLength(long length) {
+        if(length < 0) {
+            throw new IllegalArgumentException("length is negative");
+        }
+        
         this.length = length;
     }
 }

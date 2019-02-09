@@ -37,8 +37,12 @@ public class FSChunkInputStream extends HTTPChunkInputStream implements Seekable
     }
     
     @Override
-    public synchronized void seek(long l) throws IOException {
-        super.seek(l);
+    public synchronized void seek(long offset) throws IOException {
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
+        }
+        
+        super.seek(offset);
     }
     
     @Override
@@ -52,35 +56,84 @@ public class FSChunkInputStream extends HTTPChunkInputStream implements Seekable
     }
 
     @Override
-    public synchronized int read(long pos, byte[] bytes, int off, int len) throws IOException {
-        super.seek(pos);
-        if(super.getPos() != pos) {
-            throw new IOException("Cannot find position : " + pos);
+    public synchronized int read(long offset, byte[] buf, int bufOffset, int len) throws IOException {
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
         }
+        
+        if(buf == null) {
+            throw new IllegalArgumentException("buf is null");
+        }
+        
+        if(bufOffset < 0) {
+            throw new IllegalArgumentException("bufOffset is negative");
+        }
+        
+        if(len < 0) {
+            throw new IllegalArgumentException("len is negative");
+        }
+        
+        if(buf.length < len) {
+            throw new IllegalArgumentException("length of buf is smaller than len");
+        }
+        
+        super.seek(offset);
+        if(super.getPos() != offset) {
+            throw new IOException("Cannot find position : " + offset);
+        }
+        
         int available = super.available();
         
         if(available > 0) {
-            return super.read(bytes, off, Math.min(len, available));
+            return super.read(buf, bufOffset, Math.min(len, available));
         } else {
-            return super.read(bytes, off, len);
+            return super.read(buf, bufOffset, len);
         }
     }
 
     @Override
-    public synchronized void readFully(long pos, byte[] bytes, int off, int len) throws IOException {
-        super.seek(pos);
-        if(super.getPos() != pos) {
-            throw new IOException("Cannot find position : " + pos);
+    public synchronized void readFully(long offset, byte[] buf, int bufOffset, int len) throws IOException {
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
         }
-        super.read(bytes, off, len);
+        
+        if(buf == null) {
+            throw new IllegalArgumentException("buf is null");
+        }
+        
+        if(bufOffset < 0) {
+            throw new IllegalArgumentException("bufOffset is negative");
+        }
+        
+        if(len < 0) {
+            throw new IllegalArgumentException("len is negative");
+        }
+        
+        if(buf.length < len) {
+            throw new IllegalArgumentException("length of buf is smaller than len");
+        }
+        
+        super.seek(offset);
+        if(super.getPos() != offset) {
+            throw new IOException("Cannot find position : " + offset);
+        }
+        super.read(buf, bufOffset, len);
     }
 
     @Override
-    public synchronized void readFully(long pos, byte[] bytes) throws IOException {
-        super.seek(pos);
-        if(super.getPos() != pos) {
-            throw new IOException("Cannot find position : " + pos);
+    public synchronized void readFully(long offset, byte[] buf) throws IOException {
+        if(offset < 0) {
+            throw new IllegalArgumentException("offset is negative");
         }
-        super.read(bytes, 0, bytes.length);
+        
+        if(buf == null) {
+            throw new IllegalArgumentException("buf is null");
+        }
+        
+        super.seek(offset);
+        if(super.getPos() != offset) {
+            throw new IOException("Cannot find position : " + offset);
+        }
+        super.read(buf, 0, buf.length);
     }
 }

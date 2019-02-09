@@ -35,7 +35,7 @@ public class StargateFileStatus {
     private long blockSize;
     private URI redirectionPath;
     
-    public StargateFileStatus() {
+    StargateFileStatus() {
     }
     
     public StargateFileStatus(DataObjectMetadata metadata, long blockSize, URI path, URI redirectionPath) {
@@ -43,8 +43,8 @@ public class StargateFileStatus {
             throw new IllegalArgumentException("metadata is null");
         }
         
-        if(blockSize <= 0) {
-            throw new IllegalArgumentException("blockSize is invalid");
+        if(blockSize < 0) {
+            throw new IllegalArgumentException("blockSize is negative");
         }
         
         if(path == null) {
@@ -63,8 +63,8 @@ public class StargateFileStatus {
             throw new IllegalArgumentException("metadata is null");
         }
         
-        if(blockSize <= 0) {
-            throw new IllegalArgumentException("blockSize is invalid");
+        if(blockSize < 0) {
+            throw new IllegalArgumentException("blockSize is negative");
         }
         
         if(path == null) {
@@ -92,7 +92,7 @@ public class StargateFileStatus {
     
     public StargateFileStatus(Recipe recipe, URI path) {
         if(recipe == null) {
-            throw new IllegalArgumentException("recipe is null or empty");
+            throw new IllegalArgumentException("recipe is null");
         }
         
         if(path == null) {
@@ -116,6 +116,10 @@ public class StargateFileStatus {
     
     @JsonProperty("path")
     public void setPath(URI path) {
+        if(path == null) {
+            throw new IllegalArgumentException("path is null");
+        }
+        
         this.path = path;
     }
     
@@ -126,6 +130,10 @@ public class StargateFileStatus {
     
     @JsonProperty("metadata")
     public void setMetadata(DataObjectMetadata metadata) {
+        if(metadata == null) {
+            throw new IllegalArgumentException("metadata is null");
+        }
+        
         this.metadata = metadata;
     }
     
@@ -136,6 +144,10 @@ public class StargateFileStatus {
     
     @JsonProperty("block_size")
     public void setBlockSize(long blockSize) {
+        if(blockSize < 0) {
+            throw new IllegalArgumentException("blockSize is negative");
+        }
+        
         this.blockSize = blockSize;
     }
     
@@ -146,6 +158,8 @@ public class StargateFileStatus {
     
     @JsonProperty("redirection_path")
     public void setRedirectionPath(URI redirectionPath) {
+        // redirectionPath can be null
+        
         this.redirectionPath = redirectionPath;
     }
 }

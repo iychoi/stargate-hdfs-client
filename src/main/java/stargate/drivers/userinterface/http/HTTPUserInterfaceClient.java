@@ -21,8 +21,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import stargate.commons.cluster.Cluster;
 import stargate.commons.cluster.Node;
 import stargate.commons.dataobject.DataObjectMetadata;
@@ -41,8 +39,6 @@ import stargate.commons.utils.PathUtils;
  */
 public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
 
-    private static final Log LOG = LogFactory.getLog(HTTPUserInterfaceClient.class);
-    
     private URI serviceUri;
     private String username;
     private String password;
@@ -63,7 +59,7 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
     }
     
     @Override
-    public void connect() throws IOException {
+    public synchronized void connect() throws IOException {
         if(!this.connected) {
             this.restfulClient = new RestfulClient(this.serviceUri, this.username, this.password);
 
@@ -74,7 +70,7 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
     }
     
     @Override
-    public void disconnect() {
+    public synchronized void disconnect() {
         if(this.connected) {
             this.restfulClient.close();
             this.connected = false;

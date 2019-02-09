@@ -15,6 +15,8 @@
 */
 package stargate.client.hdfs;
 
+import org.codehaus.jackson.annotate.JsonProperty;
+
 /**
  *
  * @author iychoi
@@ -24,28 +26,47 @@ public class StargateFileBlockLocationEntry {
     private String name;
     private String host;
     
-    public StargateFileBlockLocationEntry() {
-        
+    StargateFileBlockLocationEntry() {
     }
     
     public StargateFileBlockLocationEntry(String name, String host) {
+        if(name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("name is null or empty");
+        }
+        
+        if(host == null || host.isEmpty()) {
+            throw new IllegalArgumentException("host is null or empty");
+        }
+        
         this.name = name;
         this.host = host;
     }
     
+    @JsonProperty("name")
     public String getName() {
         return this.name;
     }
 
+    @JsonProperty("name")
     public void setName(String name) {
+        if(name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("name is null or empty");
+        }
+        
         this.name = name;
     }
     
+    @JsonProperty("host")
     public String getHost() {
         return this.host;
     }
     
+    @JsonProperty("host")
     public void setHost(String host) {
+        if(host == null || host.isEmpty()) {
+            throw new IllegalArgumentException("host is null or empty");
+        }
+        
         this.host = host;
     }
 }

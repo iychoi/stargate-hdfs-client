@@ -48,7 +48,7 @@ public class StargateHDFS extends FileSystem {
     private Path workingDir;
     private FileSystem localHDFS;
     
-    public StargateHDFS() {
+    StargateHDFS() {
     }
     
     @Override
@@ -137,6 +137,10 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
+        if(bufferSize < 0) {
+            throw new IllegalArgumentException("bufferSize is negative");
+        }
+        
         LOG.debug("open: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
@@ -209,6 +213,14 @@ public class StargateHDFS extends FileSystem {
     public BlockLocation[] getFileBlockLocations(Path path, long start, long len) throws IOException {
         if(path == null) {
             throw new IllegalArgumentException("path is null");
+        }
+        
+        if(start < 0) {
+            throw new IllegalArgumentException("start is negative");
+        }
+        
+        if(len < 0) {
+            throw new IllegalArgumentException("len is negative");
         }
         
         LOG.debug("getFileBlockLocations: " + path.toString());
