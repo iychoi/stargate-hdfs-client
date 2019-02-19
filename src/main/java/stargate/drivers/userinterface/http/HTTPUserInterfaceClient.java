@@ -593,7 +593,7 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
     public Collection<StatisticsEntry> getStatistics(StatisticsType type) throws IOException {
         if(!this.connected) {
             throw new IOException("Client is not connected");
-}
+        }
         
         if(type == null) {
             throw new IllegalArgumentException("type is null");
@@ -619,6 +619,19 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
         
         // URL pattern = http://xxx.xxx.xxx.xxx/api/stat/type
         String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_CLEAR_STATISTICS_PATH, type.name());
+        Boolean result = (Boolean) this.restfulClient.delete(url);
+
+        updateLastActivetime();
+    }
+
+    @Override
+    public void clearAllStatistics() throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/allstat
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_CLEAR_ALL_STATISTICS_PATH);
         Boolean result = (Boolean) this.restfulClient.delete(url);
 
         updateLastActivetime();
