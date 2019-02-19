@@ -29,6 +29,8 @@ import stargate.commons.datasource.DataExportEntry;
 import stargate.commons.recipe.Recipe;
 import stargate.commons.restful.RestfulClient;
 import stargate.commons.service.FSServiceInfo;
+import stargate.commons.statistics.StatisticsEntry;
+import stargate.commons.statistics.StatisticsType;
 import stargate.commons.transport.TransferAssignment;
 import stargate.commons.userinterface.AbstractUserInterfaceClient;
 import stargate.commons.utils.DateTimeUtils;
@@ -52,6 +54,8 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
         if(serviceURI == null) {
             throw new IllegalArgumentException("serviceURI is null");
         }
+        
+        // username and password can be null
         
         this.serviceUri = serviceURI;
         this.username = username;
@@ -221,6 +225,20 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
         
         // URL pattern = http://xxx.xxx.xxx.xxx/api/lnode
         String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_LOCAL_NODE_PATH);
+        Node node = (Node) this.restfulClient.get(url);
+
+        updateLastActivetime();
+        return node;
+    }
+    
+    @Override
+    public Node getLeaderNode() throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/leadernode
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_LEADER_NODE_PATH);
         Node node = (Node) this.restfulClient.get(url);
 
         updateLastActivetime();
@@ -569,5 +587,40 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
 
         updateLastActivetime();
         return Arrays.asList(sources);
+    }
+
+    @Override
+    public Collection<StatisticsEntry> getStatistics(StatisticsType type) throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+}
+        
+        if(type == null) {
+            throw new IllegalArgumentException("type is null");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/stat/type
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_GET_STATISTICS_PATH, type.name());
+        StatisticsEntry[] stats = (StatisticsEntry[]) this.restfulClient.get(url);
+
+        updateLastActivetime();
+        return Arrays.asList(stats);
+    }
+
+    @Override
+    public void clearStatistics(StatisticsType type) throws IOException {
+        if(!this.connected) {
+            throw new IOException("Client is not connected");
+        }
+        
+        if(type == null) {
+            throw new IllegalArgumentException("type is null");
+        }
+        
+        // URL pattern = http://xxx.xxx.xxx.xxx/api/stat/type
+        String url = makeAPIPath(HTTPUserInterfaceRestfulConstants.API_CLEAR_STATISTICS_PATH, type.name());
+        Boolean result = (Boolean) this.restfulClient.delete(url);
+
+        updateLastActivetime();
     }
 }
