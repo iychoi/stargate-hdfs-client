@@ -4,12 +4,9 @@ source ${CUR_DIR}/bootstrap.sh
 
 ROOT_DIR=~
 
-
 work() {
     local node=$1
-    scp -r ${RELDIR}/${RELEASE_ARCHIVE_FILENAME} ${node}:${ROOT_DIR}/
-    ssh ${node} "rm -rf ${ROOT_DIR}/${RELEASE_NAME}" < /dev/null
-    ssh ${node} "tar zxvf ${ROOT_DIR}/${RELEASE_ARCHIVE_FILENAME}" < /dev/null
+    ssh ${node} "wget -N -P ${ROOT_DIR} ${RELEASE_REPO_URL}/libs/stargate-hdfs-client-1.0.jar" < /dev/null
     echo "Done ${node}"
 }
 
