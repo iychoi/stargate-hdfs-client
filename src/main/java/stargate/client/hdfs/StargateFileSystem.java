@@ -344,10 +344,11 @@ public class StargateFileSystem {
                     blockLocationEntries.add(blockLocationEntry);
                 }
                 
-                StargateFileBlockLocation blockLocation = new StargateFileBlockLocation(blockLocationEntries, offset, chunk.getLength());
+                int effectiveChunkSize = recipe.getEffectiveChunkSize(chunk);
+                StargateFileBlockLocation blockLocation = new StargateFileBlockLocation(blockLocationEntries, offset, effectiveChunkSize);
                 blockLocations.add(blockLocation);
                 
-                offset += chunk.getLength();
+                offset += effectiveChunkSize;
             }
             
             return Collections.unmodifiableCollection(blockLocations);
