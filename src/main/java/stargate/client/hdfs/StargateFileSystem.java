@@ -54,8 +54,6 @@ public class StargateFileSystem {
     private final Object recipeCacheSyncObj = new Object();
     private Map<DataObjectURI, Collection<DataObjectMetadata>> dataObjectMetadataListCache = new PassiveExpiringMap<DataObjectURI, Collection<DataObjectMetadata>>(5, TimeUnit.MINUTES);
     private final Object dataObjectMetadataListCacheSyncObj = new Object();
-    private Map<DataObjectURI, DataObjectMetadata> dataObjectMetadataCache = new PassiveExpiringMap<DataObjectURI, DataObjectMetadata>(5, TimeUnit.MINUTES);
-    private final Object dataObjectMetadataCacheSyncObj = new Object();
     
     public StargateFileSystem(String serviceURI) throws IOException {
         if(serviceURI == null) {
@@ -234,26 +232,41 @@ public class StargateFileSystem {
         }
         
         DataObjectURI path = makeDataObjectURI(uri);
-        synchronized(this.dataObjectMetadataCacheSyncObj) {
-            DataObjectMetadata cachedMetadata = this.dataObjectMetadataCache.get(path);
+        DataObjectURI parentPath = path.getParent();
         
-            if(cachedMetadata == null) {
+        synchronized(this.dataObjectMetadataListCacheSyncObj) {
+            Collection<DataObjectMetadata> cachedMetadataList = this.dataObjectMetadataListCache.get(parentPath);
+        
+            if(cachedMetadataList == null) {
                 try {
-                    DataObjectMetadata metadata = this.userInterfaceClient.getDataObjectMetadata(path);
-                    if(metadata == null) {
-                        throw new IOException(String.format("cannot retrive a metadata for %s", path.toString()));
+                    Collection<DataObjectMetadata> metadataList = this.userInterfaceClient.listDataObjectMetadata(path);
+                    if(metadataList == null) {
+                        throw new IOException(String.format("cannot retrive a metadata list for %s", path.toString()));
                     }
 
-                    this.dataObjectMetadataCache.put(path, metadata);
-                    cachedMetadata = metadata;
+                    this.dataObjectMetadataListCache.put(path, metadataList);
+                    cachedMetadataList = metadataList;
                 } catch (FileNotFoundException ex) {
                     throw ex;
                 } catch (Exception ex) {
                     throw new IOException(ex);
                 }
             }
+            
+            DataObjectMetadata metadata = null;
+            
+            for(DataObjectMetadata cachedMetadata : cachedMetadataList) {
+                if(cachedMetadata.getURI().equals(path)) {
+                    metadata = cachedMetadata;
+                    break;
+                }
+            }
+            
+            if(metadata == null) {
+                throw new IOException(String.format("cannot retrive a metadata for %s", path.toString()));
+            }
 
-            return makeStargateFileStatus(cachedMetadata, uri);
+            return makeStargateFileStatus(metadata, uri);
         }
     }
     
@@ -372,10 +385,6 @@ public class StargateFileSystem {
         
         synchronized(this.dataObjectMetadataListCacheSyncObj) {
             this.dataObjectMetadataListCache.clear();
-        }
-        
-        synchronized(this.dataObjectMetadataCacheSyncObj) {
-            this.dataObjectMetadataCache.clear();
         }
     }
 }
