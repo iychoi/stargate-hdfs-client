@@ -36,6 +36,7 @@ import stargate.commons.dataobject.DataObjectURI;
 import stargate.commons.recipe.Recipe;
 import stargate.commons.recipe.RecipeChunk;
 import stargate.commons.service.FSServiceInfo;
+import stargate.commons.userinterface.UserInterfaceInitialDataPack;
 import stargate.commons.userinterface.UserInterfaceServiceInfo;
 
 /**
@@ -84,12 +85,23 @@ public class StargateFileSystem {
         this.userInterfaceClient = new HTTPUserInterfaceClient(serviceURI, null, null);
         this.userInterfaceClient.connect();
 
-        if(!this.userInterfaceClient.isLive()) {
+        UserInterfaceInitialDataPack initialDataPack = this.userInterfaceClient.getInitialDataPack();
+        if(!initialDataPack.getLive()) {
             throw new IOException("cannot connect to Stargate : " + serviceURI.toASCIIString());
         }
         
-        this.localCluster = this.userInterfaceClient.getLocalCluster();
-        this.fsServiceInfo = this.userInterfaceClient.getFSServiceInfo();
+        this.localCluster = initialDataPack.getLocalCluster();
+        this.fsServiceInfo = initialDataPack.getFSServiceInfo();
+        
+        synchronized(this.rootDataObjectMetadataCacheSyncObj) {
+            this.rootDataObjectMetadataCache = initialDataPack.getRootDataObjectMetadata();
+        }
+        
+        //if(!this.userInterfaceClient.isLive()) {
+        //    throw new IOException("cannot connect to Stargate : " + serviceURI.toASCIIString());
+        //}
+        //this.localCluster = this.userInterfaceClient.getLocalCluster();
+        //this.fsServiceInfo = this.userInterfaceClient.getFSServiceInfo();
         
         LOG.info("connected : " + serviceURI.toASCIIString());
     }
