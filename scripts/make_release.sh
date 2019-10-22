@@ -29,13 +29,17 @@ LIBS_LINE="DEFAULT_STARGATE_LIBS=\"\${BASEDIR}/libs/*\""
 sed -i 's|^DEFAULT_STARGATE_LIBS.*|'"${LIBS_LINE}"'|g' ${RELBINDIR}/bootstrap.sh
 
 # copy jar files
-mkdir -p ${RELLIBDIR}
-cp ${JARDIR}/stargate*.jar ${RELLIBDIR}/
-cp ${DEPDIR}/* ${RELLIBDIR}/
+mkdir -p ${RELDIR}
+cp ${JARDIR}/stargate*.jar ${RELDIR}/
+cp ${DEPDIR}/* ${RELDIR}/
+
+# execlude some jar files
+rm ${RELDIR}/hadoop-*.jar
+rm ${RELDIR}/slf4j-*.jar
 
 # copy License and Readme
-cp ${BASEDIR}/LICENSE ${RELDIR}/
-cp ${BASEDIR}/README.md ${RELDIR}/
+# cp ${BASEDIR}/LICENSE ${RELDIR}/
+# cp ${BASEDIR}/README.md ${RELDIR}/
 
 cp -R ${RELDIR} ${BASEDIR}/${RELEASE_NAME}
 tar zcvfP ${RELDIR}/${RELEASE_ARCHIVE_FILENAME} -C ${BASEDIR} ${RELEASE_NAME}

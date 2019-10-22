@@ -272,7 +272,7 @@ public class StargateFileSystem {
             }
         } else {
             DataObjectURI parentPath = path.getParent();
-        
+
             synchronized(this.dataObjectMetadataListCacheSyncObj) {
                 Collection<DataObjectMetadata> cachedMetadataList = this.dataObjectMetadataListCache.get(parentPath);
 

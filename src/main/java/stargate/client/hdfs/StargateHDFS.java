@@ -45,7 +45,7 @@ public class StargateHDFS extends FileSystem {
     
     private StargateFileSystem filesystem;
     private URI uri;
-    private Path workingDir;
+    private URI workingDirUri;
     private FileSystem localHDFS;
     
     StargateHDFS() {
@@ -76,14 +76,14 @@ public class StargateHDFS extends FileSystem {
     }
     
     @Override
-    public void initialize(URI uri, Configuration conf) throws IOException {
+    public synchronized void initialize(URI uri, Configuration conf) throws IOException {
         if(uri == null) {
             throw new IllegalArgumentException("uri is null");
         }
         
         super.initialize(uri, conf);
         
-        LOG.debug("initializing uri for StargateFS : " + uri.toString());
+        LOG.info("initializing uri for StargateFS : " + uri.toString());
         
         if(this.filesystem == null) {
             this.filesystem = new StargateFileSystem(getStargateHost(uri));
@@ -91,12 +91,12 @@ public class StargateHDFS extends FileSystem {
         
         setConf(conf);
         this.uri = uri;
-        
-        this.workingDir = new Path("/").makeQualified(this);
+        this.workingDirUri = uri;
         
         this.localHDFS = new Path("/").getFileSystem(conf);
         
         LOG.info("StargateFS initialized : " + uri.toString());
+        LOG.info("Working dir : " + this.workingDirUri.toString());
     }
     
     @Override
@@ -106,7 +106,7 @@ public class StargateHDFS extends FileSystem {
 
     @Override
     public Path getWorkingDirectory() {
-        return this.workingDir;
+        return new Path(this.workingDirUri);
     }
     
     @Override
@@ -115,20 +115,15 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.debug("setWorkingDirectory: " + path.toString());
+        LOG.info("setWorkingDirectory: " + path.toString());
         
-        this.workingDir = makeAbsolute(path);
+        this.workingDirUri = makeAbsoluteURI(path);
     }
     
-    private Path makeAbsolute(Path path) {
-        if (path.isAbsolute()) {
-            return path;
-        }
-        return new Path(this.workingDir, path);
-    }
-    
-    private URI makeAbsoluteURI(Path path) {
-        return makeAbsolute(path).toUri();
+    private synchronized URI makeAbsoluteURI(Path path) {
+        String pathString = path.toUri().getPath();
+        URI resolved = this.workingDirUri.resolve(pathString);
+        return resolved;
     }
     
     @Override
@@ -141,7 +136,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("bufferSize is negative");
         }
         
-        LOG.debug("open: " + path.toString());
+        LOG.info("open: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         StargateFileStatus status = this.filesystem.getFileStatus(absPath);
@@ -161,7 +156,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.debug("getFileStatus: " + path.toString());
+        LOG.info("getFileStatus: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         StargateFileStatus status = this.filesystem.getFileStatus(absPath);
@@ -174,7 +169,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("path is null");
         }
         
-        LOG.debug("listStatus: " + path.toString());
+        LOG.info("listStatus: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         Collection<StargateFileStatus> status = this.filesystem.listStatus(absPath);
@@ -223,7 +218,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("len is negative");
         }
         
-        LOG.debug("getFileBlockLocations: " + path.toString());
+        LOG.info("getFileBlockLocations: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
         Collection<StargateFileBlockLocation> fileBlockLocations = this.filesystem.getFileBlockLocations(absPath, start, len);
