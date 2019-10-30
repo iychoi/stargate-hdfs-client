@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,6 +40,7 @@ import stargate.commons.recipe.RecipeChunk;
 import stargate.commons.service.FSServiceInfo;
 import stargate.commons.userinterface.UserInterfaceInitialDataPack;
 import stargate.commons.userinterface.UserInterfaceServiceInfo;
+import stargate.commons.utils.IPUtils;
 
 /**
  *
@@ -46,6 +49,9 @@ import stargate.commons.userinterface.UserInterfaceServiceInfo;
 public class StargateFileSystem {
     
     private static final Log LOG = LogFactory.getLog(StargateFileSystem.class);
+    
+    private StargateFileSystemConfig config;
+    private URI serviceURI;
     
     private HTTPUserInterfaceClient userInterfaceClient;
     private Cluster localCluster;
@@ -58,27 +64,54 @@ public class StargateFileSystem {
     private DataObjectMetadata rootDataObjectMetadataCache;
     private final Object rootDataObjectMetadataCacheSyncObj = new Object();
     
-    public StargateFileSystem(String serviceURI) throws IOException {
-        if(serviceURI == null) {
-            throw new IllegalArgumentException("serviceURI is null");
+    public StargateFileSystem(URI uri, StargateFileSystemConfig config) throws IOException {
+        if(uri == null) {
+            throw new IllegalArgumentException("uri is null");
         }
         
-        String newServiceURI = serviceURI;
-        if(!serviceURI.startsWith("http://")) {
-            newServiceURI = "http://" + serviceURI;
+        if(config == null) {
+            throw new IllegalArgumentException("config is null");
         }
+        
+        String serviceURI = getStargateHost(uri, config);
         
         try {
-            initialize(new URI(newServiceURI));
+            initialize(new URI(serviceURI), config);
         } catch (URISyntaxException ex) {
             throw new IOException(ex);
         }
     }
     
-    public void initialize(URI serviceURI) throws IOException {
+    private String getStargateHost(URI uri, StargateFileSystemConfig config) {
+        if(uri == null) {
+            throw new IllegalArgumentException("uri is null");
+        }
+        
+        String host = config.getStargateServiceHostname();
+        int port = config.getStargateServicePort();
+        
+        if(uri.getHost() != null && !uri.getHost().isEmpty()) {
+            host = uri.getHost();
+        }
+        
+        if(uri.getPort() > 0) {
+            port = uri.getPort();
+        }
+        
+        return String.format("http://%s:%d", host, port);
+    }
+    
+    public void initialize(URI serviceURI, StargateFileSystemConfig config) throws IOException {
         if(serviceURI == null) {
             throw new IllegalArgumentException("serviceURI is null");
         }
+        
+        if(config == null) {
+            throw new IllegalArgumentException("config is null");
+        }
+        
+        this.config = config;
+        this.serviceURI = serviceURI;
         
         LOG.info("connecting to Stargate : " + serviceURI.toASCIIString());
         
@@ -347,16 +380,95 @@ public class StargateFileSystem {
     }
     
     private StargateFileBlockLocationEntry getBlockLocationEntry(String nodeName) {
+        //> Path : hdfs://node0.hadoop.cs.arizona.edu:9000/data/TOV/Station109_DCM.fa
+        //>> Offset: 0
+        //>> Length: 67108864
+        //>> Names
+        //150.135.65.19:50010
+        //150.135.65.12:50010
+        //>> Topology Paths
+        ///default-rack/150.135.65.19:50010
+        ///default-rack/150.135.65.12:50010
+        //>> Hosts
+        //node9.hadoop.cs.arizona.edu
+        //node2.hadoop.cs.arizona.edu
+        //>> Cached Hosts
+        
         Node node = this.localCluster.getNode(nodeName);
-        UserInterfaceServiceInfo userInterfaceServiceInfo = node.getUserInterfaceServiceInfo();
-        URI serviceURI = userInterfaceServiceInfo.getServiceURI();
         
-        String host = serviceURI.getHost();
-        int port = serviceURI.getPort();
+        String selectedIP = null;
+        String selectedHostname = null;
+        int port = this.serviceURI.getPort();
         
-        String name = String.format("%s:%d", host, port);
+        Pattern DFSIPPattern = Pattern.compile(this.config.getDFSIPPattern());
+        Pattern DFSIPAntiPattern = null;
+        if(this.config.getDFSIPAntiPattern() != null) {
+            DFSIPAntiPattern = Pattern.compile(this.config.getDFSIPAntiPattern());
+        }
+        Pattern DFSHostnamePattern = Pattern.compile(this.config.getDFSHostnamePattern());
         
-        StargateFileBlockLocationEntry entry = new StargateFileBlockLocationEntry(name, host);
+        for(String hostname : node.getHostnames()) {
+            if(selectedIP == null) {
+                Matcher DFSIPMatcher = DFSIPPattern.matcher(hostname);
+                if(DFSIPMatcher.matches()) {
+                    if(DFSIPAntiPattern != null) {
+                        Matcher DFSIPAntiMatcher = DFSIPAntiPattern.matcher(hostname);
+                        if(!DFSIPAntiMatcher.matches()) {
+                            selectedIP = hostname;
+                        }
+                    } else {
+                        selectedIP = hostname;
+                    }
+                }
+            }
+            
+            if(selectedHostname == null) {
+                Matcher DFSHostnameMatcher = DFSHostnamePattern.matcher(hostname);
+                if(DFSHostnameMatcher.matches()) {
+                    selectedHostname = hostname;
+                }
+            }
+        }
+        
+        if(selectedIP == null || selectedHostname == null) {
+            for(String hostname : node.getHostnames()) {
+                if(selectedIP == null) {
+                    if(IPUtils.isIPAddress(hostname)) {
+                        selectedIP = hostname;
+                    }
+                }
+
+                if(selectedHostname == null) {
+                    if(IPUtils.isDomainName(hostname)) {
+                        selectedHostname = hostname;
+                    }
+                }
+            }
+        }
+        
+        if(selectedHostname == null) {
+            for(String hostname : node.getHostnames()) {
+                if(selectedHostname == null) {
+                    if(!IPUtils.isIPAddress(hostname)) {
+                        selectedHostname = hostname;
+                    }
+                }
+            }
+        }
+        
+        if(selectedHostname == null) {
+            for(String hostname : node.getHostnames()) {
+                if(selectedHostname == null) {
+                    if(IPUtils.isIPAddress(hostname)) {
+                        selectedHostname = hostname;
+                    }
+                }
+            }
+        }
+        
+        String name = String.format("%s:%d", selectedIP, port);
+        
+        StargateFileBlockLocationEntry entry = new StargateFileBlockLocationEntry(name, selectedHostname);
         return entry;
     }
     

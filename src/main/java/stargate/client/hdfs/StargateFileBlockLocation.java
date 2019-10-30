@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.annotate.JsonProperty;
+import stargate.commons.utils.StringUtils;
 
 /**
  *
@@ -172,5 +173,14 @@ public class StargateFileBlockLocation {
         }
         
         this.length = length;
+    }
+    
+    @JsonIgnore
+    @Override
+    public String toString() {
+        String names = StringUtils.getCommaSeparatedString(this.names);
+        String hosts = StringUtils.getCommaSeparatedString(this.hosts);
+        
+        return String.format("FileBlockLocation: off(%d), len(%d), names(%s), hosts(%s)", this.offset, this.length, names, hosts);
     }
 }

@@ -41,8 +41,6 @@ public class StargateHDFS extends FileSystem {
 
     private static final Log LOG = LogFactory.getLog(StargateHDFS.class);
     
-    private static final int DEFAULT_SERVICE_PORT = 41010;
-    
     private StargateFileSystem filesystem;
     private URI uri;
     private URI workingDirUri;
@@ -56,25 +54,6 @@ public class StargateHDFS extends FileSystem {
         return this.uri;
     }
     
-    private String getStargateHost(URI uri) {
-        if(uri == null) {
-            throw new IllegalArgumentException("uri is null");
-        }
-        
-        String host = "localhost";
-        int port = DEFAULT_SERVICE_PORT;
-        
-        if(uri.getHost() != null && !uri.getHost().isEmpty()) {
-            host = uri.getHost();
-        }
-        
-        if(uri.getPort() > 0) {
-            port = uri.getPort();
-        }
-        
-        return host + ":" + port;
-    }
-    
     @Override
     public synchronized void initialize(URI uri, Configuration conf) throws IOException {
         if(uri == null) {
@@ -85,8 +64,10 @@ public class StargateHDFS extends FileSystem {
         
         LOG.info("initializing uri for StargateFS : " + uri.toString());
         
+        StargateFileSystemConfig fsConfig = StargateFileSystemConfig.createInstance(conf);
+        
         if(this.filesystem == null) {
-            this.filesystem = new StargateFileSystem(getStargateHost(uri));
+            this.filesystem = new StargateFileSystem(uri, fsConfig);
         }
         
         setConf(conf);
@@ -218,7 +199,7 @@ public class StargateHDFS extends FileSystem {
             throw new IllegalArgumentException("len is negative");
         }
         
-        LOG.info("getFileBlockLocations: " + path.toString());
+        LOG.info(String.format("getFileBlockLocations: %s, start(%d), len(%d)", path.toString(), start, len));
         
         URI absPath = makeAbsoluteURI(path);
         Collection<StargateFileBlockLocation> fileBlockLocations = this.filesystem.getFileBlockLocations(absPath, start, len);
@@ -226,6 +207,8 @@ public class StargateHDFS extends FileSystem {
         
         for(StargateFileBlockLocation location : fileBlockLocations) {
             BlockLocation blkLocation = makeBlockLocation(location);
+            
+            LOG.info(String.format("> block location: %s", location.toString()));
             blkLocations.add(blkLocation);
         }
         
