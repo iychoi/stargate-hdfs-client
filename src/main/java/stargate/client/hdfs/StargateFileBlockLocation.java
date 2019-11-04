@@ -15,9 +15,11 @@
 */
 package stargate.client.hdfs;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.annotate.JsonProperty;
@@ -29,8 +31,8 @@ import stargate.commons.utils.StringUtils;
  */
 public class StargateFileBlockLocation {
     
-    private Set<String> names = new HashSet<String>();
-    private Set<String> hosts = new HashSet<String>();
+    private List<String> names = new ArrayList<String>();
+    private List<String> hosts = new ArrayList<String>();
     private long offset;
     private long length;
     

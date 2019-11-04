@@ -218,7 +218,15 @@ public class StargateHDFS extends FileSystem {
     private BlockLocation makeBlockLocation(StargateFileBlockLocation blockLocation) {
         String[] names = blockLocation.getNames().toArray(new String[0]);
         String[] hosts = blockLocation.getHosts().toArray(new String[0]);
-        return new BlockLocation(names, hosts, blockLocation.getOffset(), blockLocation.getLength());
+        
+        List<String> topo_list = new ArrayList<String>();
+        for(String name : names) {
+            topo_list.add(String.format("/default-rack/%s", name));
+        }
+        
+        String[] topology = topo_list.toArray(new String[0]);
+        
+        return new BlockLocation(names, hosts, topology, blockLocation.getOffset(), blockLocation.getLength());
     }
     
     @Override

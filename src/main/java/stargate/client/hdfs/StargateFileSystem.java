@@ -39,7 +39,6 @@ import stargate.commons.recipe.Recipe;
 import stargate.commons.recipe.RecipeChunk;
 import stargate.commons.service.FSServiceInfo;
 import stargate.commons.userinterface.UserInterfaceInitialDataPack;
-import stargate.commons.userinterface.UserInterfaceServiceInfo;
 import stargate.commons.utils.IPUtils;
 
 /**

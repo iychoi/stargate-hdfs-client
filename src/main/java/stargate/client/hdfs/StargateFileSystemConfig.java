@@ -147,10 +147,9 @@ public class StargateFileSystemConfig extends AbstractImmutableConfig {
     
     @JsonProperty("dfs_ip_antipattern")
     public void setDFSIPAntiPattern(String dfsIPAntiPattern) {
-        if(dfsIPAntiPattern == null || dfsIPAntiPattern.isEmpty()) {
-            throw new IllegalArgumentException("dfsIPAntiPattern is invalid");
-        }
-        
+        //if(dfsIPAntiPattern == null || dfsIPAntiPattern.isEmpty()) {
+        //    throw new IllegalArgumentException("dfsIPAntiPattern is invalid");
+        //}
         super.checkMutableAndRaiseException();
         
         this.dfsIPAntiPattern = dfsIPAntiPattern;
