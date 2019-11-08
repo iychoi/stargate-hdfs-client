@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -56,12 +57,17 @@ public class StargateFileSystem {
     private Cluster localCluster;
     private FSServiceInfo fsServiceInfo;
     
+    private Pattern DFSIPPattern;
+    private Pattern DFSIPAntiPattern;
+    private Pattern DFSHostnamePattern;
+    
     private Map<DataObjectURI, Recipe> recipeCache = new PassiveExpiringMap<DataObjectURI, Recipe>(5, TimeUnit.MINUTES);
     private final Object recipeCacheSyncObj = new Object();
     private Map<DataObjectURI, Collection<DataObjectMetadata>> dataObjectMetadataListCache = new PassiveExpiringMap<DataObjectURI, Collection<DataObjectMetadata>>(5, TimeUnit.MINUTES);
     private final Object dataObjectMetadataListCacheSyncObj = new Object();
     private DataObjectMetadata rootDataObjectMetadataCache;
     private final Object rootDataObjectMetadataCacheSyncObj = new Object();
+    private Map<String, StargateFileBlockLocationEntry> fileBlockLocationEntryCache = new Hashtable<String, StargateFileBlockLocationEntry>();
     
     public StargateFileSystem(URI uri, StargateFileSystemConfig config) throws IOException {
         if(uri == null) {
@@ -136,6 +142,13 @@ public class StargateFileSystem {
         //this.fsServiceInfo = this.userInterfaceClient.getFSServiceInfo();
         
         LOG.info("connected : " + serviceURI.toASCIIString());
+        
+        
+        this.DFSIPPattern = Pattern.compile(this.config.getDFSIPPattern());
+        if(this.config.getDFSIPAntiPattern() != null) {
+            this.DFSIPAntiPattern = Pattern.compile(this.config.getDFSIPAntiPattern());
+        }
+        this.DFSHostnamePattern = Pattern.compile(this.config.getDFSHostnamePattern());
     }
     
     private String getClusterName(URI uri) {
@@ -392,83 +405,82 @@ public class StargateFileSystem {
         //node9.hadoop.cs.arizona.edu
         //node2.hadoop.cs.arizona.edu
         //>> Cached Hosts
+        StargateFileBlockLocationEntry cachedEntry = this.fileBlockLocationEntryCache.get(nodeName);
+        if(cachedEntry == null) {
+            Node node = this.localCluster.getNode(nodeName);
         
-        Node node = this.localCluster.getNode(nodeName);
-        
-        String selectedIP = null;
-        String selectedHostname = null;
-        int port = this.serviceURI.getPort();
-        
-        Pattern DFSIPPattern = Pattern.compile(this.config.getDFSIPPattern());
-        Pattern DFSIPAntiPattern = null;
-        if(this.config.getDFSIPAntiPattern() != null) {
-            DFSIPAntiPattern = Pattern.compile(this.config.getDFSIPAntiPattern());
-        }
-        Pattern DFSHostnamePattern = Pattern.compile(this.config.getDFSHostnamePattern());
-        
-        for(String hostname : node.getHostnames()) {
-            if(selectedIP == null) {
-                Matcher DFSIPMatcher = DFSIPPattern.matcher(hostname);
-                if(DFSIPMatcher.matches()) {
-                    if(DFSIPAntiPattern != null) {
-                        Matcher DFSIPAntiMatcher = DFSIPAntiPattern.matcher(hostname);
-                        if(!DFSIPAntiMatcher.matches()) {
-                            selectedIP = hostname;
-                        }
-                    } else {
-                        selectedIP = hostname;
-                    }
-                }
-            }
-            
-            if(selectedHostname == null) {
-                Matcher DFSHostnameMatcher = DFSHostnamePattern.matcher(hostname);
-                if(DFSHostnameMatcher.matches()) {
-                    selectedHostname = hostname;
-                }
-            }
-        }
-        
-        if(selectedIP == null || selectedHostname == null) {
+            String selectedIP = null;
+            String selectedHostname = null;
+            int port = this.serviceURI.getPort();
+
             for(String hostname : node.getHostnames()) {
                 if(selectedIP == null) {
-                    if(IPUtils.isIPAddress(hostname)) {
-                        selectedIP = hostname;
+                    Matcher DFSIPMatcher = this.DFSIPPattern.matcher(hostname);
+                    if(DFSIPMatcher.matches()) {
+                        if(this.DFSIPAntiPattern != null) {
+                            Matcher DFSIPAntiMatcher = this.DFSIPAntiPattern.matcher(hostname);
+                            if(!DFSIPAntiMatcher.matches()) {
+                                selectedIP = hostname;
+                            }
+                        } else {
+                            selectedIP = hostname;
+                        }
                     }
                 }
 
                 if(selectedHostname == null) {
-                    if(IPUtils.isDomainName(hostname)) {
+                    Matcher DFSHostnameMatcher = this.DFSHostnamePattern.matcher(hostname);
+                    if(DFSHostnameMatcher.matches()) {
                         selectedHostname = hostname;
                     }
                 }
             }
-        }
-        
-        if(selectedHostname == null) {
-            for(String hostname : node.getHostnames()) {
-                if(selectedHostname == null) {
-                    if(!IPUtils.isIPAddress(hostname)) {
-                        selectedHostname = hostname;
+
+            if(selectedIP == null || selectedHostname == null) {
+                for(String hostname : node.getHostnames()) {
+                    if(selectedIP == null) {
+                        if(IPUtils.isIPAddress(hostname)) {
+                            selectedIP = hostname;
+                        }
+                    }
+
+                    if(selectedHostname == null) {
+                        if(IPUtils.isDomainName(hostname)) {
+                            selectedHostname = hostname;
+                        }
                     }
                 }
             }
-        }
-        
-        if(selectedHostname == null) {
-            for(String hostname : node.getHostnames()) {
-                if(selectedHostname == null) {
-                    if(IPUtils.isIPAddress(hostname)) {
-                        selectedHostname = hostname;
+
+            if(selectedHostname == null) {
+                for(String hostname : node.getHostnames()) {
+                    if(selectedHostname == null) {
+                        if(!IPUtils.isIPAddress(hostname)) {
+                            selectedHostname = hostname;
+                        }
                     }
                 }
             }
+
+            if(selectedHostname == null) {
+                for(String hostname : node.getHostnames()) {
+                    if(selectedHostname == null) {
+                        if(IPUtils.isIPAddress(hostname)) {
+                            selectedHostname = hostname;
+                        }
+                    }
+                }
+            }
+
+            String name = String.format("%s:%d", selectedIP, port);
+
+            cachedEntry = new StargateFileBlockLocationEntry(name, selectedHostname);
+            
+            // cache
+            this.fileBlockLocationEntryCache.put(nodeName, cachedEntry);
         }
         
-        String name = String.format("%s:%d", selectedIP, port);
-        
-        StargateFileBlockLocationEntry entry = new StargateFileBlockLocationEntry(name, selectedHostname);
-        return entry;
+        return cachedEntry;
     }
     
     public Collection<StargateFileBlockLocation> getFileBlockLocations(URI uri, long start, long len) throws IOException {
@@ -522,7 +534,7 @@ public class StargateFileSystem {
             throw new IOException(ex);
         }
     }
-
+    
     public long getBlockSize() {
         return this.fsServiceInfo.getChunkSize();
     }
@@ -537,5 +549,7 @@ public class StargateFileSystem {
         synchronized(this.dataObjectMetadataListCacheSyncObj) {
             this.dataObjectMetadataListCache.clear();
         }
+        
+        this.fileBlockLocationEntryCache.clear();
     }
 }
