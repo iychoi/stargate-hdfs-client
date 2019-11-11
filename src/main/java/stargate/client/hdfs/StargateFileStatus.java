@@ -33,29 +33,8 @@ public class StargateFileStatus {
     private URI path;
     private DataObjectMetadata metadata;
     private long blockSize;
-    private URI redirectionPath;
     
     StargateFileStatus() {
-    }
-    
-    public StargateFileStatus(DataObjectMetadata metadata, long blockSize, URI path, URI redirectionPath) {
-        if(metadata == null) {
-            throw new IllegalArgumentException("metadata is null");
-        }
-        
-        if(blockSize < 0) {
-            throw new IllegalArgumentException("blockSize is negative");
-        }
-        
-        if(path == null) {
-            throw new IllegalArgumentException("path is null");
-        }
-        
-        //if(redirectionPath == null) {
-        //    throw new IllegalArgumentException("redirectionPath is null");
-        //}
-        
-        initialize(metadata, blockSize, path, redirectionPath);
     }
     
     public StargateFileStatus(DataObjectMetadata metadata, long blockSize, URI path) {
@@ -71,23 +50,7 @@ public class StargateFileStatus {
             throw new IllegalArgumentException("path is null");
         }
         
-        initialize(metadata, blockSize, path, null);
-    }
-    
-    public StargateFileStatus(Recipe recipe, URI path, URI redirectionPath) {
-        if(recipe == null) {
-            throw new IllegalArgumentException("recipe is null");
-        }
-        
-        if(path == null) {
-            throw new IllegalArgumentException("path is null");
-        }
-        
-        if(redirectionPath == null) {
-            throw new IllegalArgumentException("redirectionPath is null");
-        }
-        
-        initialize(recipe.getMetadata(), recipe.getChunkSize(), path, redirectionPath);
+        initialize(metadata, blockSize, path);
     }
     
     public StargateFileStatus(Recipe recipe, URI path) {
@@ -99,14 +62,13 @@ public class StargateFileStatus {
             throw new IllegalArgumentException("path is null");
         }
         
-        initialize(recipe.getMetadata(), recipe.getChunkSize(), null, path);
+        initialize(recipe.getMetadata(), recipe.getChunkSize(), path);
     }
     
-    private void initialize(DataObjectMetadata metadata, long blockSize, URI path, URI redirectionPath) {
+    private void initialize(DataObjectMetadata metadata, long blockSize, URI path) {
         this.metadata = metadata;
         this.blockSize = blockSize;
         this.path = path;
-        this.redirectionPath = redirectionPath;
     }
     
     @JsonProperty("path")
@@ -149,17 +111,5 @@ public class StargateFileStatus {
         }
         
         this.blockSize = blockSize;
-    }
-    
-    @JsonProperty("redirection_path")
-    public URI getRedirectionPath() {
-        return this.redirectionPath;
-    }
-    
-    @JsonProperty("redirection_path")
-    public void setRedirectionPath(URI redirectionPath) {
-        // redirectionPath can be null
-        
-        this.redirectionPath = redirectionPath;
     }
 }

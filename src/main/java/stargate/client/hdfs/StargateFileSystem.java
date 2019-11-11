@@ -224,14 +224,7 @@ public class StargateFileSystem {
             URI metaURI = makeURI(metadata.getURI());
             URI absURI = parentURI.resolve(metaURI);
             
-            if(!metadata.isDirectory() && isLocalClusterPath(metadata.getURI())) {
-                //TODO: need to implement this
-                //URI localResourcePath = this.userInterfaceClient.getLocalResourcePath(metadata.getURI());
-                URI localResourcePath = null;
-                return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI, localResourcePath);
-            } else {
-                return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI);
-            }
+            return new StargateFileStatus(metadata, this.fsServiceInfo.getChunkSize(), absURI);
         } catch (URISyntaxException ex) {
             throw new IOException(ex);
         }

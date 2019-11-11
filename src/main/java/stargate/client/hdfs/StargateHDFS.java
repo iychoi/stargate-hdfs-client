@@ -120,15 +120,7 @@ public class StargateHDFS extends FileSystem {
         LOG.info("open: " + path.toString());
         
         URI absPath = makeAbsoluteURI(path);
-        StargateFileStatus status = this.filesystem.getFileStatus(absPath);
-        URI redirectionPath = status.getRedirectionPath();
-        if(redirectionPath != null) {
-            // read from local 
-            return this.localHDFS.open(new Path(redirectionPath), bufferSize);
-        } else {
-            // pass to stargate
-            return new FSDataInputStream(this.filesystem.open(absPath, bufferSize));
-        }
+        return new FSDataInputStream(this.filesystem.open(absPath, bufferSize));
     }
 
     @Override
