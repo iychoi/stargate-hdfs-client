@@ -31,5 +31,10 @@
             <artifactId>hadoop-client</artifactId>
             <version>2.7.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.ignite</groupId>
+            <artifactId>ignite-core</artifactId>
+            <version>2.7.6</version>
+        </dependency>
     </dependencies>
 </project>

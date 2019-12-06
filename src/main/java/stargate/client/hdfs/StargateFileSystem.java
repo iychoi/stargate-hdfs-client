@@ -120,7 +120,7 @@ public class StargateFileSystem {
         
         LOG.info("connecting to Stargate : " + serviceURI.toASCIIString());
         
-        this.userInterfaceClient = new HTTPUserInterfaceClient(serviceURI, null, null);
+        this.userInterfaceClient = new HTTPUserInterfaceClient(serviceURI, null, null, false);
         this.userInterfaceClient.connect();
 
         UserInterfaceInitialDataPack initialDataPack = this.userInterfaceClient.getInitialDataPack();
@@ -264,7 +264,7 @@ public class StargateFileSystem {
         }
     }
 
-    public FSChunkInputStream open(URI uri, int bufferSize) throws IOException {
+    public FSChunkPartInputStream open(URI uri, int bufferSize) throws IOException {
         if(uri == null) {
             throw new IllegalArgumentException("uri is null");
         }
@@ -272,7 +272,8 @@ public class StargateFileSystem {
         DataObjectURI path = makeDataObjectURI(uri);
         Recipe recipe = this.userInterfaceClient.getRecipe(path);
         if(recipe != null) {
-            return new FSChunkInputStream(this.userInterfaceClient, recipe);
+            return new FSChunkPartInputStream(this.userInterfaceClient, recipe, this.fsServiceInfo.getPartSize());
+            //return new FSChunkInputStream(this.userInterfaceClient, recipe);
         } else {
             throw new IOException("unable to retrieve a recipe of " + path.getPath());
         }

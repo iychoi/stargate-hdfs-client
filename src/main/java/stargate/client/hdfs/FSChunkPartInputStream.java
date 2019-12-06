@@ -22,18 +22,18 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
 import stargate.commons.recipe.Recipe;
-import stargate.drivers.userinterface.http.HTTPChunkInputStream;
+import stargate.drivers.userinterface.http.HTTPChunkPartInputStream;
 
 /**
  *
  * @author iychoi
  */
-public class FSChunkInputStream extends HTTPChunkInputStream implements Seekable, PositionedReadable {
+public class FSChunkPartInputStream extends HTTPChunkPartInputStream implements Seekable, PositionedReadable {
 
-    private static final Log LOG = LogFactory.getLog(FSChunkInputStream.class);
+    private static final Log LOG = LogFactory.getLog(FSChunkPartInputStream.class);
     
-    public FSChunkInputStream(HTTPUserInterfaceClient client, Recipe recipe) {
-        super(client, recipe);
+    public FSChunkPartInputStream(HTTPUserInterfaceClient client, Recipe recipe, int partSize) {
+        super(client, recipe, partSize);
     }
     
     @Override

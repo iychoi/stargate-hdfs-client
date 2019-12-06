@@ -44,7 +44,6 @@ public class StargateHDFS extends FileSystem {
     private StargateFileSystem filesystem;
     private URI uri;
     private URI workingDirUri;
-    private FileSystem localHDFS;
     
     StargateHDFS() {
     }
@@ -73,8 +72,6 @@ public class StargateHDFS extends FileSystem {
         setConf(conf);
         this.uri = uri;
         this.workingDirUri = uri;
-        
-        this.localHDFS = new Path("/").getFileSystem(conf);
         
         LOG.info("StargateFS initialized : " + uri.toString());
         LOG.info("Working dir : " + this.workingDirUri.toString());
@@ -224,7 +221,6 @@ public class StargateHDFS extends FileSystem {
     @Override
     public void close() throws IOException {
         this.filesystem.close();
-        this.localHDFS.close();
         
         super.close();
     }
