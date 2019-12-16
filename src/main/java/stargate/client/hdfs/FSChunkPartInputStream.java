@@ -17,6 +17,7 @@ package stargate.client.hdfs;
 
 import stargate.drivers.userinterface.http.HTTPUserInterfaceClient;
 import java.io.IOException;
+import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.PositionedReadable;
@@ -32,8 +33,8 @@ public class FSChunkPartInputStream extends HTTPChunkPartInputStream implements 
 
     private static final Log LOG = LogFactory.getLog(FSChunkPartInputStream.class);
     
-    public FSChunkPartInputStream(HTTPUserInterfaceClient client, Recipe recipe, int partSize) {
-        super(client, recipe, partSize);
+    public FSChunkPartInputStream(Map<String, HTTPUserInterfaceClient> clients, Recipe recipe, int partSize) {
+        super(clients, recipe, partSize);
     }
     
     @Override
