@@ -605,12 +605,14 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
                 is = getDataChunkRest(uri, hash);
                 break;
             case DATA_CHUNK_SOURCE_REMOTE_CLUSTER:
+                /*
                 if(canDirectAccessCacheFile(status)) {
                     // file cache
                     is = getDataChunkDirectCacheAccess(status);
                 } else {
+                */
                     is = getDataChunkRest(uri, hash);
-                }
+                //}
                 break;
             default:
                 throw new IOException("unknown data chunk source");
