@@ -605,14 +605,14 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
                 is = getDataChunkRest(uri, hash);
                 break;
             case DATA_CHUNK_SOURCE_REMOTE_CLUSTER:
-                /*
                 if(canDirectAccessCacheFile(status)) {
                     // file cache
+                    LOG.info(String.format("Reading cache (%s) from local fs directly (%s)", hash, status.getLocalCachePathString()));
                     is = getDataChunkDirectCacheAccess(status);
                 } else {
-                */
+                    LOG.info(String.format("Reading cache (%s) via REST service", hash));
                     is = getDataChunkRest(uri, hash);
-                //}
+                }
                 break;
             default:
                 throw new IOException("unknown data chunk source");
@@ -679,8 +679,10 @@ public class HTTPUserInterfaceClient extends AbstractUserInterfaceClient {
             case DATA_CHUNK_SOURCE_REMOTE_CLUSTER:
                 if(canDirectAccessCacheFile(status)) {
                     // file cache
+                    LOG.info(String.format("Reading cache (%s) from local fs directly (%s)", hash, status.getLocalCachePathString()));
                     is = getDataChunkPartDirectCacheAccess(status, partNo);
                 } else {
+                    LOG.info(String.format("Reading cache (%s) via REST service", hash));
                     is = getDataChunkPartRest(uri, hash, partNo);
                 }
                 break;
